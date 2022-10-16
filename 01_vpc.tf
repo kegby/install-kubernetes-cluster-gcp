@@ -14,6 +14,8 @@ module "vpc" {
     ]
 
     firewall_rules = [
+
+        # First Rule: kubernetes-the-hard-way-allow-internal
         {
             name                    = "kubernetes-the-hard-way-allow-internal"
             direction               = "INGRESS"
@@ -35,12 +37,13 @@ module "vpc" {
             ]
         },
 
+        # Second Rule: kubernetes-the-hard-way-allow-external
         {
             name                    = "kubernetes-the-hard-way-allow-external"
             direction               = "INGRESS"
             ranges                  = ["0.0.0.0/0"]
-            allow = [
 
+            allow = [
                 {
                     protocol = "tcp"
                     ports    = ["22","6443"]
@@ -53,5 +56,15 @@ module "vpc" {
             ]
         }    
     ]
+}
 
+# Provide Static IP External Address
+resource "google_compute_address" "ip_address" {
+  name          = "kubernetes-the-hard-way"
+  region        = "us-east1"
+}
+
+output "static_address" {
+  description = "ip address"
+  value       = google_compute_address.ip_address.address
 }
