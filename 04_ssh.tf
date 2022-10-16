@@ -55,3 +55,54 @@ resource "null_resource" "cp_certs_controller_nodes" {
     destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/service-account.pem"
   }      
 }
+
+resource "null_resource" "worker-config-provision" {
+  count = var.worker_nodes
+  depends_on = [google_compute_instance.worker, null_resource.localexec_kube_proxy, null_resource.localexec_kubeconfig]
+  connection {
+    user = "${split("@", data.google_client_openid_userinfo.me.email)[0]}"
+    private_key = tls_private_key.ssh.private_key_pem
+    timeout = "3m"
+    host = "${google_compute_instance.worker[count.index].network_interface.0.access_config.0.nat_ip}"
+  }
+  provisioner "file" {
+    source      = "worker-${count.index}.kubeconfig"
+    destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/worker-${count.index}.kubeconfig"
+  }
+  provisioner "file" {
+    source      = "kube-proxy.kubeconfig"
+    destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/kube-proxy.kubeconfig"
+  }  
+}
+
+resource "null_resource" "cp_kubeconfig_controller_nodes" {
+  count = 3
+  depends_on = [google_compute_instance.control_panel, null_resource.localexec_controller, null_resource.localexec_scheduler, null_resource.localexec_admin, null_resource.cp_certs_controller_nodes]
+  connection {
+    user = "${split("@", data.google_client_openid_userinfo.me.email)[0]}"
+    private_key = tls_private_key.ssh.private_key_pem
+    timeout = "3m"
+    host = "${google_compute_instance.control_panel[count.index].network_interface.0.access_config.0.nat_ip}"
+  }
+  provisioner "file" {
+    source      = "admin.kubeconfig"
+    destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/admin.kubeconfig"
+  }
+  provisioner "file" {
+    source      = "kube-controller-manager.kubeconfig"
+    destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/kube-controller-manager.kubeconfig"
+  }
+  provisioner "file" {
+    source      = "kube-scheduler.kubeconfig"
+    destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/kube-scheduler.kubeconfig"
+  }        
+  provisioner "file" {
+    source      = "encryption-config.yaml"
+    destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/encryption-config.yaml"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo cp ca.pem kubernetes-key.pem kubernetes.pem /etc/etcd/"
+    ]
+  }   
+}

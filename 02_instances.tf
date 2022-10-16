@@ -37,6 +37,7 @@ resource "google_compute_instance" "control_panel" {
 
     metadata = {
       ssh-keys = "${split("@", data.google_client_openid_userinfo.me.email)[0]}:${tls_private_key.ssh.public_key_openssh}"
+      startup-script = file("controller-startup.sh")
   }
 
 }
