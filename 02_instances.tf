@@ -75,6 +75,7 @@ resource "google_compute_instance" "worker" {
     metadata = {
       pod-cidr = "10.200.${count.index}.0/24"
       ssh-keys = "${split("@", data.google_client_openid_userinfo.me.email)[0]}:${tls_private_key.ssh.public_key_openssh}"
+      startup-script = file("worker-startup.sh")
   }
   
 }

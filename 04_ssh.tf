@@ -58,7 +58,7 @@ resource "null_resource" "cp_certs_controller_nodes" {
 
 resource "null_resource" "worker-config-provision" {
   count = var.worker_nodes
-  depends_on = [google_compute_instance.worker, null_resource.localexec_kube_proxy, null_resource.localexec_kubeconfig]
+  depends_on = [google_compute_instance.worker, null_resource.localexec_kube_proxy, null_resource.localexec_kubeconfig, null_resource.cp_certs_workers_nodes]
   connection {
     user = "${split("@", data.google_client_openid_userinfo.me.email)[0]}"
     private_key = tls_private_key.ssh.private_key_pem
@@ -72,7 +72,17 @@ resource "null_resource" "worker-config-provision" {
   provisioner "file" {
     source      = "kube-proxy.kubeconfig"
     destination = "/home/${split("@", data.google_client_openid_userinfo.me.email)[0]}/kube-proxy.kubeconfig"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv ca.pem /var/lib/kubernetes/",
+      "sudo mv kube-proxy.kubeconfig /var/lib/kube-proxy/kubeconfig",
+      "sudo mv kubelet-${google_compute_instance.worker[count.index].name}-key.pem kubelet-${google_compute_instance.worker[count.index].name}.pem /var/lib/kubelet/",
+      "sudo mv ${google_compute_instance.worker[count.index].name}.kubeconfig /var/lib/kubelet/kubeconfig"
+    ]
   }  
+    
 }
 
 resource "null_resource" "cp_kubeconfig_controller_nodes" {
@@ -102,7 +112,14 @@ resource "null_resource" "cp_kubeconfig_controller_nodes" {
   }
   provisioner "remote-exec" {
     inline = [
-      "sudo cp ca.pem kubernetes-key.pem kubernetes.pem /etc/etcd/"
+      "sudo cp ca.pem kubernetes-key.pem kubernetes.pem /etc/etcd/",
+      "sudo mv ca.pem ca-key.pem kubernetes-key.pem kubernetes.pem service-account-key.pem service-account.pem encryption-config.yaml /var/lib/kubernetes/",
+      "sudo mv kube-controller-manager.kubeconfig /var/lib/kubernetes/",
+      "sudo mv kube-scheduler.kubeconfig /var/lib/kubernetes/"
     ]
-  }   
+  }
+  provisioner "remote-exec" {
+    script = "./remote-exec.sh"
+  }     
 }
+

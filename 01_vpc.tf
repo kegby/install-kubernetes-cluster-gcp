@@ -54,6 +54,20 @@ module "vpc" {
                     ports    = []
                 }
             ]
+        },
+
+        # Thirt Rule: kubernetes-the-hard-way-allow-health-check
+        {
+            name                    = "kubernetes-the-hard-way-allow-health-check"
+            direction               = "INGRESS"
+            ranges                  = ["209.85.152.0/22","209.85.204.0/22","35.191.0.0/16"]
+            
+            allow = [
+                {
+                    protocol = "tcp"
+                    ports    = []
+                }
+            ]
         }    
     ]
 }
@@ -62,6 +76,40 @@ module "vpc" {
 resource "google_compute_address" "ip_address" {
   name          = "kubernetes-the-hard-way"
   region        = "us-east1"
+}
+
+resource "google_compute_http_health_check" "default" {
+  depends_on                 = [null_resource.cp_kubeconfig_controller_nodes] 
+  name         = "kubernetes"
+  request_path = "/healthz"
+  description = "Kubernetes Health Check"
+  host = "kubernetes.default.svc.cluster.local"
+}
+
+resource "google_compute_target_pool" "default" {
+  depends_on                 = [google_compute_http_health_check.default] 
+  name = "kubernetes-target-pool"
+  region = "us-east1"
+  project = "precise-clock-362521"
+
+  instances = [
+    "${data.google_compute_zones.available.names[0]}/controller-0",
+    "${data.google_compute_zones.available.names[0]}/controller-1",
+    "${data.google_compute_zones.available.names[0]}/controller-2" 
+  ]
+
+  health_checks = [
+    google_compute_http_health_check.default.name,
+  ]
+}
+
+resource "google_compute_forwarding_rule" "google_compute_forwarding_rule" {
+  name                  = "kubernetes-forwarding-rule"
+  depends_on            = [google_compute_target_pool.default]
+  port_range            = "6443"
+  region                = "us-east1"
+  target                = google_compute_target_pool.default.id
+  ip_address            = google_compute_address.ip_address.address
 }
 
 output "static_address" {
