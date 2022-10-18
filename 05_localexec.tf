@@ -172,6 +172,13 @@ resource "null_resource" "localexec_remote_access" {
   }
 }
 
+resource "null_resource" "apply_dns" {
+  depends_on = [null_resource.localexec_remote_access]
+  provisioner "local-exec" {
+    command = "kubectl apply -f https://storage.googleapis.com/kubernetes-the-hard-way/coredns-1.8.yaml"
+  }
+}
+
 resource "null_resource" "localexec_delete" {
   provisioner "local-exec" {
     command = "rm admin.kubeconfig kube-scheduler.kubeconfig worker-0.kubeconfig worker-1.kubeconfig worker-2.kubeconfig kube-proxy.kubeconfig kube-controller-manager.kubeconfig "

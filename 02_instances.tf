@@ -94,3 +94,8 @@ output "user" {
   description = "SSH User"
   value       = ["${split("@", data.google_client_openid_userinfo.me.email)[0]}"]
 }
+
+output "worker-Metadata" {
+  description = "Metadata Value for POD CIR"
+  value       = ["${google_compute_instance.worker.*.metadata.pod-cidr}"]
+}

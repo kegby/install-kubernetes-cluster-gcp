@@ -112,7 +112,21 @@ resource "google_compute_forwarding_rule" "google_compute_forwarding_rule" {
   ip_address            = google_compute_address.ip_address.address
 }
 
+
+resource "google_compute_route" "default" {
+  count       = 3
+  name        = "kubernetes-route-10-200-${count.index}-0-24"
+  dest_range  = google_compute_instance.worker[count.index].metadata.pod-cidr
+  network     = module.vpc.network_name
+  next_hop_ip = google_compute_instance.worker[count.index].network_interface.0.network_ip
+}
+
 output "static_address" {
   description = "ip address"
   value       = google_compute_address.ip_address.address
 }
+
+output "network-name" {
+  description = "network name"
+  value       = module.vpc.network_name
+  }
